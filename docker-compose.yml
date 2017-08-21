@@ -1,0 +1,64 @@
+version: '3'
+services:
+  php:
+    image: php:7.1-fpm-alpine
+    volumes:
+      - ./out/:/var/www/html
+    environment:
+      - APP_NAME=Glagol DSL
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_LOG_LEVEL=debug
+      - DB_HOST=mysql
+      - DB_PASSWORD=123
+    links:
+      - mysql
+
+  mysql:
+    image: mysql:5.7
+    ports:
+      - 3307:3306
+    environment:
+      - MYSQL_DATABASE=glagol
+      - MYSQL_ROOT_PASSWORD=123
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d
+
+  composer:
+    image: composer:1.5
+    command: install --prefer-dist --ignore-platform-reqs --no-scripts --no-dev
+    volumes:
+      - ./out/:/app
+      - .composer/:/tmp
+    user: "1000:1000"
+    depends_on:
+      - global_composer
+
+  global_composer:
+    image: composer:1.5
+    command: global require hirak/prestissimo
+    volumes:
+      - .composer/:/tmp
+    user: "1000:1000"
+
+  nginx:
+    image: nginx:1.13
+    ports:
+      - "8081:80"
+    volumes:
+      - ./site.conf:/etc/nginx/conf.d/default.conf
+    links:
+      - php
+
+  glagol-client:
+    image: glagol/client:0.3
+    environment:
+      - GLAGOL_DSL_HOST=glagol-server
+    links:
+      - glagol-server
+    volumes:
+      - ./:/app
+    user: "1000:1000"
+
+  glagol-server:
+    image: glagol/server:0.3
